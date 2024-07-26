@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 //import { Link } from 'react-router-dom';
 import DataTable from 'react-data-table-component';
 import MapComponent from './MapComponent';
-import locationsData from './data';
+import {fetchCases} from './data';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import { Await } from 'react-router-dom';
+
 
 function DataTablePage() {
   const [data, setData] = useState([]);
 
   const geocode = async (location) => {
-    const apiKey = 'AIzaSyCvwz9hrHRRu4e3xggr812sj63vFmOx1Zs'; // Replace with your API key
+    const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with your API key
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${apiKey}`;
 
     try {
@@ -29,17 +31,29 @@ function DataTablePage() {
   };
 
   useEffect(() => {
-    const fetchCoordinates = async () => {
-      const dataWithCoordinates = await Promise.all(locationsData.map(async (location) => {
+    const fetchCoordinates = async (data) => {
+      return await Promise.all(data.map(async (location) => {
         const coordinates = await geocode(location.location);
         return {
           ...location,
           coordinates,
         };
       }));
-      setData(dataWithCoordinates);
     };
-    fetchCoordinates();
+
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://localhost:3002/uploads');
+        const rawData = await response.json();
+        const dataWithCoordinates = await fetchCoordinates(rawData);
+        setData(dataWithCoordinates);
+        console.log(dataWithCoordinates)
+      } catch (error) {
+        console.error('Error fetching cases:', error);
+      }
+    };
+
+    fetchData();
   }, []);
 
   const deleteRow = (id) => {
@@ -49,35 +63,27 @@ function DataTablePage() {
   const columns = [
     {
       name: 'Case',
-      selector: row => row.case,
+      selector: row => row.text,
     },
     {
       name: 'Voice Record',
-      selector: row => row.voiceRecord,
-      cell: row => <audio controls src={row.voiceRecord} />,
+      selector: row => row.voice,
+      cell: row => <audio controls src={`http://localhost:3002/uploads/${row.voice}`} />,
     },
     {
-      name: 'Location',
-      selector: row => row.location,
+      name: 'Latitude',
+      selector: row => row.gpsCoords.latitude,
+    },
+    {
+      name: 'Longitude',
+      selector: row => row.gpsCoords.longitude,
     },
     {
       name: 'Severity',
-      selector: row => row.severity,
+      selector: row => row.score,
       sortable: true,
-      sortFunction: (a, b) => a.severity - b.severity,
-      id: 'severity',
-    },
-    {
-      name: 'Reporting Time',
-      selector: row => row.reportingTime,
-      sortable: true,
-      sortFunction: (a, b) => {
-        const toMinutes = time => {
-          const [hours, minutes] = time.split(':').map(Number);
-          return hours * 60 + minutes;
-        };
-        return toMinutes(a.reportingTime) - toMinutes(b.reportingTime);
-      },
+      sortFunction: (a, b) => a.score - b.score,
+      id: 'score',
     },
     {
       name: 'Actions',
@@ -96,10 +102,11 @@ function DataTablePage() {
     <div className='container mt-5'>
        <DataTable
         columns={columns}
-        data={data}
+          
+        data={data.sort((a, b) => a.score - b.score) }
         //selectableRows
-        defaultSortFieldId='severity'
-        defaultSortAsc={false}
+        defaultSortFieldId='Severity'
+        defaultSortAsc={true}
         pagination
         fixedHeader
       />
