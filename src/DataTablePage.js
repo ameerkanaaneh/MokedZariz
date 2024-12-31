@@ -102,7 +102,7 @@ function DataTablePage() {
     <div className='container mt-5'>
        <DataTable
         columns={columns}
-          
+  
         data={data.sort((a, b) => a.score - b.score) }
         //selectableRows
         defaultSortFieldId='Severity'
